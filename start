@@ -29,34 +29,26 @@ if not args.simple:
     print('CURRENT SETTINGS\n* MINIMUM_PERCENT_VOL:{}\n* TRADING_PAIRS:{}\n* COINS_SHOWN:{}\n* EXCHANGES:{}\n* ALL_TRADING_PAIRS:{}\n* ALL_EXCHANGES:{}\n'.format(args.minimum_vol,args.pairs,args.coins_shown,lowercase_exchanges,all_trading_pairs,all_exchanges))
 # retrieve coin data
 for coin in cmc.ticker():
+    if coin["symbol"] not in ["BTC", "ETH", "XRP", "BCH", "ADA", "LTC", "XLM", "DASH", "XMR", "BTG", "ETC"]:
+        continue
     try:
         markets = cmc.markets(coin["id"])
     except Exception as e:
         markets = cmc.markets(coin["symbol"])
     best_price = 0
 
-    best_exchange = ''
-    best_pair = ''
-    worst_price = 999999
-    worst_exchange = ''
-    worst_pair = ''
-    has_markets = False
+    items = []
     for market in markets:
         trades_into = market["pair"].replace(coin["symbol"],"").replace("-","")
         if market['percent_volume'] >= args.minimum_vol and market['updated'] and (trades_into in args.pairs or all_trading_pairs) and (market['exchange'].lower() in lowercase_exchanges or all_exchanges):
-            has_markets = True
-            if market['price_usd'] >= best_price:
-                best_price = market['price_usd']
-                best_exchange = market['exchange']
-                best_pair = trades_into
-            if market['price_usd'] <= worst_price:
-                worst_price = market['price_usd']
-                worst_exchange = market['exchange']
-                worst_pair = trades_into
-    if has_markets:
-        info.append([coin['name'],round((best_price/worst_price-1)*100,2),worst_price,worst_exchange,worst_pair,best_price,best_exchange,best_pair])
-    elif not args.simple:
-        print(coin['name'],'had no markets that fit the criteria.')
+            items.append((market['price_usd'], market['exchange'], trades_into))
+
+    items.sort(key=lambda item: item[0])
+    for i in range(len(items)):
+        for j in range(1, len(items)):
+            margin = round((items[j][0]/items[i][0]-1)*100,2)
+            if margin > 5.00:
+                info.append([coin['name'],margin,items[i][0],items[i][1],items[i][2],items[j][0],items[j][1],items[j][2]])
 
     print('[{}/100]'.format(count),end='\r')
     count += 1
